@@ -35,4 +35,4 @@ Accuracy: 78.9%
 1 (Approved)      0.76    0.99      0.86       80
 ```
 
-**Open observation:** class 0 recall (0.42) is still much lower than class 1 recall (0.99) — model leans heavily toward predicting approval. Likely driven by natural class imbalance in the dataset (~69% approved / 31% rejected). Worth revisiting with `class_weight='balanced'`, or comparing against tree-based models later to see if they handle the imbalance better by default.
+**Open observation:** class 0 recall (0.42) is still much lower than class 1 recall (0.99) — model leans heavily toward predicting approval. Likely driven by natural class imbalance in the dataset (~69% approved / 31% rejected). Worth revisiting with `class_weight='balanced'`, or comparing against tree-based models later to see if they handle the imbalance better by default.git 
