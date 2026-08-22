@@ -8,7 +8,7 @@ AI usage disclosure: Used Claude for roadmap structuring, code review, and debug
 
 - [x] Linear Regression
 - [x] Logistic Regression (+ Encoding)
-- [ ] Decision Tree
+- [x] Decision Tree
 - [ ] Random Forest
 - [ ] KNN
 - [ ] Naive Bayes
