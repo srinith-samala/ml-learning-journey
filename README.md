@@ -9,8 +9,8 @@ AI usage disclosure: Used Claude for roadmap structuring, code review, and debug
 - [x] Linear Regression
 - [x] Logistic Regression (+ Encoding)
 - [x] Decision Tree
-- [ ] Random Forest
-- [ ] KNN
+- [x] Random Forest
+- [x] KNN
 - [ ] Naive Bayes
 - [ ] Gradient Boosting
 - [ ] K-Means
@@ -55,3 +55,35 @@ Accuracy: 78.9%
 ```
 
 **Open observation:** class 0 recall (0.42) is still much lower than class 1 recall (0.99) — model leans heavily toward predicting approval, likely due to natural class imbalance in the dataset (~69% approved). Something to revisit with `class_weight='balanced'` or when comparing against tree-based models later.
+
+## 03 — Decision Tree
+
+Two datasets: Loan Prediction (same as above, for direct comparison) and Heart Disease (UCI/Kaggle Heart Failure Prediction).
+
+**Pipeline:** Same as above, but Label Encoding only (no One-Hot needed — trees split on comparisons, not weighted sums), no scaling (not distance-based), plus `max_depth` tuning, feature importance, and tree visualization.
+
+**Key lesson — choosing `max_depth`:** looped through depth values and plotted train vs test accuracy. The best depth is wherever *test* accuracy peaks, not train accuracy — train accuracy climbs toward 1.0 the deeper the tree goes (overfitting), while test accuracy peaks then declines. On Loan Prediction, `max_depth=4` was best; on Heart Disease, `max_depth=2` was best.
+
+**Biggest mistake:** after running the depth-comparison loop, kept using the loop's leftover `model` variable (last depth tried) instead of explicitly retraining at the best depth — meant later metrics reflected an overfit model, not the tuned one. Also had a stale-model bug caused by a typo (`Y_train` vs `y_train`) silently failing and leaving old results in place.
+
+**Feature importance:** `Credit_History` dominated the Loan tree (~77%); `ST_Slope` dominated the Heart Disease tree (~81%) — both datasets have one very strong predictor.
+
+## 04 — Random Forest
+
+Two datasets: Loan Prediction and Telco Customer Churn (Kaggle, 7043 rows — much larger, many more categorical columns).
+
+**Key concepts:** Bagging (each tree trains on a random bootstrap sample of rows) + feature randomness (each split only considers a random subset of columns) — together these force trees to be genuinely different, so averaging their votes cancels out individual overfitting. `max_depth` matters far less here than for a single tree.
+
+**Result:** on Loan Prediction, Random Forest (75.6%) actually underperformed Logistic Regression (78.9%) and Decision Tree (77.2%) — a good reminder that a more complex model isn't automatically better, especially on small datasets dominated by one strong feature. On the larger Telco Churn dataset, Random Forest hit 79.6% accuracy, and feature importance was spread across many features instead of one dominant column — consistent with feature randomness at work.
+
+**Mistake:** forgot to fill missing values in `Loan_Amount_Term` before training — didn't error out (this sklearn version tolerates some missing values in tree models) but was still wrong practice; fixed and accuracy improved slightly.
+
+## 05 — KNN (K-Nearest Neighbors)
+
+Loan Prediction dataset — first distance-based algorithm tried, a different paradigm from equation-based (Linear/Logistic) and tree-based (Decision Tree/Random Forest) models.
+
+**Key concept:** no real "training" happens — for every prediction, KNN calculates Euclidean distance to all training points and takes a majority vote among the `K` nearest ones. Because it's distance-based: scaling is mandatory again (like Logistic Regression), and One-Hot Encoding is back for nominal columns (unlike the tree models, which only needed Label Encoding).
+
+**Choosing K:** looped `n_neighbors` from 1–20 and picked the value with best test accuracy (K=9), rather than guessing a number upfront — same tuning discipline as `max_depth` for Decision Tree.
+
+**Cross-algorithm insight:** all four algorithms tried so far (Logistic Regression, Decision Tree, Random Forest, KNN) show the *exact same* 0.42 recall on the minority class (Rejected) on the Loan Prediction dataset. Strong evidence the bottleneck is the dataset's class imbalance (~69%/31%), not the choice of algorithm — flagged for later with `class_weight='balanced'` or resampling techniques.
