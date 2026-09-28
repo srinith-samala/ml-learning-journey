@@ -11,7 +11,9 @@ AI usage disclosure: Used Claude for roadmap structuring, code review, and debug
 - [x] Decision Tree
 - [x] Random Forest
 - [x] KNN
-- [ ] Naive Bayes
+- [x] Naive Bayes
+- [ ] XGBoost
+- [ ] Adaboost
 - [ ] Gradient Boosting
 - [ ] K-Means
 - [ ] PCA
