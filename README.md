@@ -12,9 +12,11 @@ AI usage disclosure: Used Claude for roadmap structuring, code review, and debug
 - [x] Random Forest
 - [x] KNN
 - [x] Naive Bayes
-- [ ] XGBoost
-- [ ] Adaboost
-- [ ] Gradient Boosting
+- [x] XGBoost
+- [x] Gradient Boosting
+- [ ] AdaBoost
+- [ ] SVM
+- [ ] Ridge / Lasso / ElasticNet
 - [ ] K-Means
 - [ ] PCA
 
@@ -82,10 +84,38 @@ Two datasets: Loan Prediction and Telco Customer Churn (Kaggle, 7043 rows — mu
 
 ## 05 — KNN (K-Nearest Neighbors)
 
-Loan Prediction dataset — first distance-based algorithm tried, a different paradigm from equation-based (Linear/Logistic) and tree-based (Decision Tree/Random Forest) models.
+Two datasets: Loan Prediction and Iris (first multiclass problem — 3 species, all-numeric features).
 
 **Key concept:** no real "training" happens — for every prediction, KNN calculates Euclidean distance to all training points and takes a majority vote among the `K` nearest ones. Because it's distance-based: scaling is mandatory again (like Logistic Regression), and One-Hot Encoding is back for nominal columns (unlike the tree models, which only needed Label Encoding).
 
-**Choosing K:** looped `n_neighbors` from 1–20 and picked the value with best test accuracy (K=9), rather than guessing a number upfront — same tuning discipline as `max_depth` for Decision Tree.
+**Choosing K:** looped `n_neighbors` from 1–20 and picked the value with best test accuracy (K=9 on Loan Prediction), rather than guessing a number upfront — same tuning discipline as `max_depth` for Decision Tree.
 
-**Cross-algorithm insight:** all four algorithms tried so far (Logistic Regression, Decision Tree, Random Forest, KNN) show the *exact same* 0.42 recall on the minority class (Rejected) on the Loan Prediction dataset. Strong evidence the bottleneck is the dataset's class imbalance (~69%/31%), not the choice of algorithm — flagged for later with `class_weight='balanced'` or resampling techniques.
+**Iris result:** 100% accuracy at every K value — a legitimate result (not a red flag) since Iris's 3 species are famously cleanly separable, unlike real-world messier data. First 3×3 confusion matrix.
+
+**Cross-algorithm insight:** every classification algorithm tried on Loan Prediction so far shows the *exact same* 0.42 recall on the minority class (Rejected). Strong evidence the bottleneck is the dataset's class imbalance (~69%/31%), not the choice of algorithm — flagged for later with `class_weight='balanced'` or resampling techniques.
+
+## 06 — Naive Bayes
+
+Three datasets: Loan Prediction, Diabetes (Pima Indians, continuous numeric features — GaussianNB's ideal setting), and SMS Spam Collection (first text classification problem).
+
+**Key concepts:** Bayes Theorem (`P(A|B) = [P(B|A)×P(A)] / P(B)`) — worked through a rare-disease-test example showing why a positive result on a rare condition can still mean low actual probability, since the base rate matters as much as test accuracy. The "naive" independence assumption treats all features as unrelated (rarely true in reality) purely to make the probability calculation fast — a simplification that still works well in practice because relative class ranking tends to stay correct even when exact probabilities are off.
+
+**GaussianNB vs MultinomialNB:** GaussianNB assumes continuous, normally-distributed features (used for Loan Prediction and Diabetes); MultinomialNB is built for discrete count data and is the standard choice for text (used for SMS Spam).
+
+**Text vectorization (new concept):** raw text can't use LabelEncoder/OneHotEncoder — instead `TfidfVectorizer` turns each unique word across the dataset into its own feature/column, weighted by how distinctive that word is to a subset of messages (vs common filler words).
+
+**Results:** Diabetes gave the best-balanced recall yet (0.69 on minority class) — the most "natural" fit for GaussianNB. SMS Spam gave the best accuracy of any algorithm/dataset combination so far (96.7%), with perfect spam precision (1.00) — direct confirmation that Naive Bayes' real strength is high-dimensional text classification, where distance-based models like KNN would struggle.
+
+## 07 — XGBoost
+
+Loan Prediction dataset — first Boosting-family algorithm (`xgboost` library, not sklearn).
+
+**Key concept — Boosting vs Bagging:** Random Forest (Bagging) builds trees independently and averages them. XGBoost (Boosting) builds trees *sequentially* — each new tree is trained to predict the residual (error) of all trees before it, and predictions are updated as `old_prediction + (learning_rate × new_tree_prediction)`. This mirrors Gradient Descent: taking small, scaled steps that reduce error over many iterations rather than jumping straight to a solution.
+
+**Result:** 76.4% accuracy — first algorithm to nudge the minority-class recall above the 0.42 every other model landed on (0.44), consistent with Boosting's sequential error-focus. Still not the top performer on this small dataset (Logistic Regression remains ahead at 78.9%) — XGBoost's advantage tends to show up more on larger, more complex data.
+
+## 08 — Gradient Boosting
+
+Loan Prediction dataset, identical pipeline and hyperparameters to the XGBoost run, for direct comparison — sklearn's `GradientBoostingClassifier` is the "unoptimized ancestor" of XGBoost: same core sequential-residual algorithm, but without XGBoost's added regularization, automatic missing-value handling, and internal parallelization.
+
+**Result:** 74.8% accuracy, and a noticeably larger train/test gap (0.892 vs 0.748) than XGBoost's run — a clean, practical confirmation that XGBoost's engineering on top of the same base algorithm meaningfully reduces overfitting and improves accuracy, even with identical `n_estimators`/`learning_rate`/`max_depth`. Lowest-scoring model on this dataset so far — extra model complexity doesn't pay off on a small, single-feature-dominated dataset like this one.
