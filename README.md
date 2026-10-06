@@ -14,11 +14,13 @@ AI usage disclosure: Used Claude for roadmap structuring, code review, and debug
 - [x] Naive Bayes
 - [x] XGBoost
 - [x] Gradient Boosting
-- [ ] AdaBoost
-- [ ] SVM
+- [x] AdaBoost
+- [x] SVM
 - [ ] Ridge / Lasso / ElasticNet
 - [ ] K-Means
 - [ ] PCA
+
+**Core supervised classification roadmap complete** (Linear Regression → Logistic Regression → Decision Tree → Random Forest → KNN → Naive Bayes → XGBoost → Gradient Boosting → AdaBoost → SVM). Next: regression variants, then unsupervised learning (K-Means, PCA).
 
 ---
 
@@ -119,3 +121,32 @@ Loan Prediction dataset — first Boosting-family algorithm (`xgboost` library, 
 Loan Prediction dataset, identical pipeline and hyperparameters to the XGBoost run, for direct comparison — sklearn's `GradientBoostingClassifier` is the "unoptimized ancestor" of XGBoost: same core sequential-residual algorithm, but without XGBoost's added regularization, automatic missing-value handling, and internal parallelization.
 
 **Result:** 74.8% accuracy, and a noticeably larger train/test gap (0.892 vs 0.748) than XGBoost's run — a clean, practical confirmation that XGBoost's engineering on top of the same base algorithm meaningfully reduces overfitting and improves accuracy, even with identical `n_estimators`/`learning_rate`/`max_depth`. Lowest-scoring model on this dataset so far — extra model complexity doesn't pay off on a small, single-feature-dominated dataset like this one.
+
+## 09 — AdaBoost
+
+Two datasets: Loan Prediction and Telco Customer Churn — the third and final Boosting-family algorithm, genuinely different in mechanism from the other two.
+
+**Key concept — AdaBoost vs Gradient Boosting:** Gradient Boosting/XGBoost fit each new tree to the previous *residual* (the target changes each round, data stays the same). AdaBoost does the opposite — the target never changes, but **sample weights** do. Every sample starts with equal weight; after each weak learner (a "stump" — `max_depth=1` tree), misclassified samples get their weight increased so the next learner is forced to focus on the hard cases. Each learner's vote is scaled by `α = ½·ln((1−error)/error)` — a learner no better than random gets zero vote, worse-than-random gets an inverted vote.
+
+**Debugging theme:** this notebook needed several rounds of fixes — passing a `range()` object directly as `n_estimators` instead of looping over it, hardcoding a guessed `n_estimators` value instead of reading it off the tuning loop's results (`np.argmax`), and forgetting to re-run metrics on the retrained best-value model after fixing the guess.
+
+**Results:** Loan Prediction (`n_estimators=10`) → 78.0% accuracy, the best-performing and best-generalizing Boosting algorithm on this dataset (smallest train/test gap of the three). Telco Churn (`n_estimators=130`) → 81.5% accuracy, 0.57 minority-class recall — the best result on that dataset across both ensemble methods tried, outperforming Random Forest (79.6%, 0.47 recall). AdaBoost's feature importance concentrated much more heavily into the top 2–3 features than Random Forest's spread-out importance, consistent with its weighted-voting mechanism repeatedly favoring the strongest predictors.
+
+## 10 — SVM (Support Vector Machine)
+
+Three datasets: Loan Prediction, and an independently-chosen Cricket Player Performance dataset (20,000 rows, synthetic, 4-class target `player_form_label`) — the final algorithm in the core supervised classification roadmap, and the first with a genuinely new paradigm (margin maximization) since KNN.
+
+**Key concepts:** finds the decision boundary with the *maximum margin* between classes — only the closest points ("support vectors") define it; everything else has zero influence. The Kernel Trick (commonly `rbf`) lets it separate non-linearly-separable data without literally transforming it into a higher dimension. `C` controls margin strictness (small = wider/more tolerant, large = narrower/more aggressive, risking overfitting). No `feature_importances_` available — a first for this project, since every prior model (tree-based or not) exposed some form of feature ranking.
+
+**Debugging theme:** trained the first model on unscaled data despite having built the scaled version (`Scaled_X_train`) — produced the same majority-class collapse seen whenever scaling is skipped for a distance-based algorithm (0.00 precision/recall on the minority class). A second, more subtle version of the same mistake reappeared in the final train/test score check, scoring against unscaled data even after predictions were correctly made on scaled data.
+
+**Results:** Loan Prediction (`C=0.1`) → 78.9% accuracy, tying Logistic Regression for the best result on that dataset, with the same 0.42 minority recall shared by 9 of 10 algorithms tried — closing out strong, repeated confirmation that the dataset's class imbalance is the real ceiling. Cricket dataset (`C=100`, tuned) → 94.2% accuracy on a 4-class problem, but with a flagged concern: train score hit a perfect 1.0, indicating the tuned `C` value, while producing the best test accuracy, is also overfitting — a trade-off worth noting rather than treating the tuning result as purely "correct."
+
+### Mistakes made across the project, now recurring enough to treat as a checklist
+
+- Stale kernel state after edits (fix: Restart Kernel + Run All, every time)
+- Reusing one `LabelEncoder()` across multiple columns (fix: one encoder object per column)
+- `train_test_split()` return order mistakes (always `X_train, X_test, y_train, y_test`)
+- Missing `()` on `.mean()`/`.median()`/`.mode()` silently corrupting a column's dtype
+- Forgetting to retrain a final model at the best tuned hyperparameter after a loop, leaving a stale model in use for downstream metrics
+- Not checking a dataset for disguised missing values (e.g. `0` standing in for missing where `0` is impossible) or data leakage (target-derived columns like `fantasy_points`/`player_rating` left in the feature set)
